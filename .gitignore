@@ -1,8 +1,8 @@
-sumo_if_ros/build/*
+sumo_bridge/build/*
 sumo/sumo/build/*
 
 **lizard_report.**
 **cppcheck_report.log
 **lint_report.log
 .log
-sumo_if_ros/cmake-build/
+sumo_bridge/cmake-build/

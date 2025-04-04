@@ -1,12 +1,9 @@
-cmake
-make
-bash
-gcc
-g++
-python3-catkin-tools
 libxerces-c-dev
 libeigen3-dev
 libgl2ps-dev
-ros-noetic-tf
 libfox-1.6-0
 libfox-1.6-dev
+libgdal-dev
+libgdal34t64
+libproj-dev
+libproj25

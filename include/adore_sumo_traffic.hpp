@@ -18,20 +18,20 @@
 #include <math.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
-#include <geometry_msgs/Pose.h>
-#include "sumotls2ros.h"
+#include <geometry_msgs/msg/pose.hpp>
+// nim #include "adore_sumo_tls.hpp"
 #include <iostream>
 #include <libsumo/libsumo.h>
-#include <ros/ros.h>
-#include <std_msgs/Float64.h>
-#include <adore_if_ros_msg/TrafficParticipantSetSimulation.h>
-#include <adore_if_ros_msg/TrafficParticipantSimulation.h>
-#include <ros/console.h>
+#include <rclcpp/time.hpp>
+#include <std_msgs/msg/float64.hpp>
+#include <adore_ros2_msgs/msg/traffic_participant_set.hpp>
+#include <adore_ros2_msgs/msg/traffic_participant.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <chrono>
 #include <thread>
 #include <unordered_set>
 #include <unordered_map>
-
+using namespace std::chrono_literals;
 namespace adore
 {
     namespace sumo_if_ros
@@ -43,60 +43,65 @@ namespace adore
             Timer() : tUTC_(0.0)
             {
             }
-            void receive(const std_msgs::Float64ConstPtr& msg)
+            void receive(const std_msgs::msg::Float64& msg)
             {
-                tUTC_ = msg->data;
+                tUTC_ = msg.data;
             }
         };
 
         struct ROSVehicleSet
         {
           public:
-            std::unordered_map<int, adore_if_ros_msg::TrafficParticipantSimulation> data_;  ///<- a mapping from vehicle
+            std::unordered_map<int, adore_ros2_msgs::msg::TrafficParticipantDetection> data_;  ///<- a mapping from vehicle
                                                                                             ///< id to
                                                                                             ///< latest message
-            void receive(adore_if_ros_msg::TrafficParticipantSimulationConstPtr msg)
+            void receive(const adore_ros2_msgs::msg::TrafficParticipantDetection& msg)
             {
                 // data_.push_back(*msg);
-                if (data_.find(msg->simulationID) == data_.end())
+                if (data_.find(msg.participant_data.tracking_id) == data_.end())
                 {
-                    data_.emplace(msg->simulationID, *msg);
+                    data_.emplace(msg.participant_data.tracking_id, msg);
                 }
                 else
                 {
-                    data_[msg->simulationID] = *msg;
+                    data_[msg.participant_data.tracking_id] = msg;
                 }
             }
         };
 
-        class SUMOTrafficToROS
+        class SUMOTrafficToROS: public rclcpp::Node
         {
           public:
-            SUMOTrafficToROS()
+            SUMOTrafficToROS():Node( "adore_sumo_bridge" )
             {
+                std::cout << "CTR" << std::endl;
+                timer = this->create_wall_timer(10ms, std::bind(&SUMOTrafficToROS::runCallback, this));
+                init_sumo();
                 delta_t_ = 0;
-                min_update_period_ = 0.01;
+                min_update_period_ = 0.01; // seconds
                 min_tl_update_period_ = 1;
                 last_tl_update_time_ = 0;
             }
             ~SUMOTrafficToROS()
             {
-                delete nh_;
             }
 
           protected:
             ROSVehicleSet rosVehicleSet_;
-            ros::NodeHandle* nh_;
-            ros::Publisher publisher_;
-            ros::Publisher mapem_publisher_;
-            ros::Publisher spatem_publisher_;
-            SumoTLs2Ros sumotls2ros;
+
+            
+            rclcpp::Publisher<adore_ros2_msgs::msg::TrafficParticipantSet>::SharedPtr publisher_;
+            // nim rclcpp::Publisher<dsrc_v2_mapem_pdu_descriptions_msgs::msg::MAPEM>::SharedPtr mapem_publisher_;
+            // nim rclcpp::Publisher<dsrc_v2_spatem_pdu_descriptions_msgs::msg::SPATEM>::SharedPtr spatem_publisher_;
+         // nim   SumoTLs2Ros sumotls2ros;
             double last_tl_update_time_;
-            ros::Subscriber subscriber1_;
-            ros::Subscriber subscriber2_;
+            rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr subscriber1_;
+            rclcpp::Subscription<adore_ros2_msgs::msg::TrafficParticipantDetection>::SharedPtr subscriber2_;
             std::string sumo_rosveh_prefix_;
             std::string sumo_rosped_prefix_;
-            std::vector<ros::Timer> rostimers_;
+            rclcpp::TimerBase::SharedPtr timer;
+
+
 
             std::unordered_map<std::string, int> sumovehid2int_;
             std::unordered_map<std::string, int> sumopedid2int_;
@@ -108,25 +113,15 @@ namespace adore
             std::vector<std::string> sumo_to_ros_ignore_list_;
             std::vector<int> ros_to_sumo_ignore_list_;
 
-            Timer timer_;
+            rcl_time_point_value_t ros_time;
+            rcl_time_point_value_t tROS0;
             double tSUMO0;
             double tSUMO;
-            double delta_t_;
+            int64_t delta_t_;
             double min_update_period_;
             double min_tl_update_period_;
-
+            double step_length;
           public:
-            ros::NodeHandle* getRosNodeHandle()
-            {
-                return nh_;
-            }
-            void run()
-            {
-                while (nh_->ok())
-                {
-                    ros::spin();
-                }
-            }
 
           protected:
             int getNewIntID()
@@ -194,7 +189,7 @@ namespace adore
             }
 
           public:
-            void runCallback(const ros::TimerEvent& te)
+            void runCallback()
             {
                 if (newStep())
                 {
@@ -202,21 +197,43 @@ namespace adore
                     transferDataRosToSumo();
                 }
             }
-
+            rcl_time_point_value_t sumo_to_ros_time (double sumo_time)
+            {
+                rcl_time_point_value_t result;
+                std::cout << "input "<< sumo_time << std::endl;
+                result = sumo_time * 1e9;
+                std::cout << "output "<< result << std::endl;
+                return result;
+            }
+            double ros_to_sumo_time (rcl_time_point_value_t ros_time)
+            {
+                double result;
+                result = (double)ros_time * 1e-9;
+                return result;
+            }
             bool newStep()
             {
                 // synchronize SUMO:
-                delta_t_ = timer_.tUTC_ - tSUMO + tSUMO0;
-                if (delta_t_ >= min_update_period_)
+                rcl_time_point_value_t new_ros_time = this->get_clock()->now().nanoseconds();
+                double new_target_time_for_sumo = ros_to_sumo_time(new_ros_time - tROS0) + tSUMO0;
+                std::cout << std::endl<<"new target time " << new_target_time_for_sumo << std::endl;
+                bool updated =false;
+                if (new_target_time_for_sumo > 1.0 && new_target_time_for_sumo < 1.2)
                 {
-                    libsumo::Simulation::step(timer_.tUTC_ + tSUMO0);
+                    return false;
+                }
+                while (new_target_time_for_sumo - tSUMO > 0.99 * step_length)
+                {
+                    libsumo::Simulation::step();
                     double tSUMO_new = libsumo::Simulation::getTime();
-
                     if (tSUMO_new <= tSUMO)
                     {
                         return false;
                     }
-                    tSUMO = tSUMO_new;
+                    tSUMO = tSUMO_new;                
+                }
+                if (updated)
+                {
                     // get vehicles from sumo
                     vehidlist_ = libsumo::Vehicle::getIDList();
                     pedidlist_ = libsumo::Person::getIDList();
@@ -227,28 +244,26 @@ namespace adore
             void transferDataSumoToRos()
             {
                 // traffic light information
-                if (timer_.tUTC_ - last_tl_update_time_ > min_tl_update_period_)
-                {
-                    auto v2x_mapem = sumotls2ros.getMAPEMFromSUMO(timer_.tUTC_);
-                    auto spatems = sumotls2ros.getSPATEMFromSUMO(timer_.tUTC_);
-
-                    // resend static mapem data
-                    for (auto&& mapem_item : v2x_mapem)
-                        mapem_publisher_.publish(mapem_item.second);
-
-                    // send non-static spatem data
-                    for (auto&& spat : spatems)
-                        spatem_publisher_.publish(spat);
-
-                    last_tl_update_time_ = timer_.tUTC_;
-                }
+        // nim         if (timer_.tUTC_ - last_tl_update_time_ > min_tl_update_period_)
+       // nim          {
+      // nim              auto v2x_mapem = sumotls2ros.getMAPEMFromSUMO(timer_.tUTC_);
+      // nim              auto spatems = sumotls2ros.getSPATEMFromSUMO(timer_.tUTC_);
+      // nim          
+      // nim              // resend static mapem data
+      // nim              for (auto&& mapem_item : v2x_mapem)
+      // nim                  mapem_publisher_->publish(mapem_item.second);
+      // nim          
+      // nim              // send non-static spatem data
+      // nim              for (auto&& spat : spatems)
+      // nim                  spatem_publisher_->publish(spat);
+                
+       // nim              last_tl_update_time_ = timer_.tUTC_;
+       // nim          }
                 // traffic participant information
                 if (vehidlist_.size() > 0 || pedidlist_.size() > 0)
                 {
                     // message for set of traffic participants
-                    adore_if_ros_msg::TrafficParticipantSetSimulation tpset;
-                    tpset.simulator = "SUMO";
-
+                    adore_ros2_msgs::msg::TrafficParticipantSet tpset;
                     for (auto& id : vehidlist_)
                     {
                         if (id.find(sumo_rosveh_prefix_) == std::string::npos)
@@ -279,31 +294,29 @@ namespace adore
                                 double L = libsumo::Vehicle::getLength(id);
                                 double w = libsumo::Vehicle::getWidth(id);
                                 double H = libsumo::Vehicle::getHeight(id);
-                                int signals = libsumo::Vehicle::getSignals(id);  ///<- bit array! see TraciAPI:669,
-                                                                                 ///< VehicleSignal
+                                double v_lat = libsumo::Vehicle::getLateralSpeed(id);
+                                //nim int signals = libsumo::Vehicle::getSignals(id);  ///<- bit array! see TraciAPI:669,
+                                //                                                 ///< VehicleSignal
 
                                 // ros message for single traffic participant
-                                adore_if_ros_msg::TrafficParticipantSimulation tp;
-                                tp.simulationID = intid;
-                                tp.data.v2xStationID = intid;
-                                tp.data.time = tSUMO - tSUMO0;
-                                tp.data.classification.type_id =
-                                    adore_if_ros_msg::TrafficClassification::CAR;  //@TODO: parse sumo type string
-                                tp.data.shape.type = 1;
-                                tp.data.shape.dimensions.push_back(L);
-                                tp.data.shape.dimensions.push_back(w);
-                                tp.data.shape.dimensions.push_back(H);
+                                adore_ros2_msgs::msg::TrafficParticipantDetection tp;
+                                tp.participant_data.tracking_id = intid;
+                              //nim  tp.data.v2x_station_id = intid;
+                                tp.participant_data.motion_state.time = tSUMO - tSUMO0;
+                                tp.participant_data.classification.type_id =
+                                    adore_ros2_msgs::msg::TrafficClassification::CAR;  //@TODO: parse sumo type string
+                                tp.participant_data.shape.dimensions.push_back(L);
+                                tp.participant_data.shape.dimensions.push_back(w);
+                                tp.participant_data.shape.dimensions.push_back(H);
                                 auto geopos = libsumo::Simulation::convertGeo(tracipos.x, tracipos.y, false);
-                                tp.data.motion_state.pose.pose.position.x = geopos.x;
-                                tp.data.motion_state.pose.pose.position.y = geopos.y;
-                                tp.data.motion_state.pose.pose.position.z = 0;
-                                tf2::Quaternion q;
-                                q.setRPY(0.0, 0.0, heading);
-                                tp.data.motion_state.pose.pose.orientation.x = q.getX();
-                                tp.data.motion_state.pose.pose.orientation.y = q.getY();
-                                tp.data.motion_state.pose.pose.orientation.z = q.getZ();
-                                tp.data.motion_state.pose.pose.orientation.w = q.getW();
-                                tp.data.motion_state.twist.twist.linear.x = v;
+                                tp.participant_data.motion_state.x = geopos.x;
+                                tp.participant_data.motion_state.y = geopos.y;
+                                tp.participant_data.motion_state.z = 0;
+                               //nim tf2::Quaternion q;
+                               //nim q.setRPY(0.0, 0.0, heading);
+                                tp.participant_data.motion_state.yaw_angle = heading;
+                                tp.participant_data.motion_state.vx = v;
+                                tp.participant_data.motion_state.vy = v_lat;
                                 // add the traffic participant to the set
                                 tpset.data.push_back(tp);
                             }
@@ -345,32 +358,28 @@ namespace adore
                             // array! see TraciAPI:669, VehicleSignal
 
                             // ros message for single traffic participant
-                            adore_if_ros_msg::TrafficParticipantSimulation tp;
-                            tp.simulationID = intid;
-                            tp.data.time = tSUMO - tSUMO0;
-                            tp.data.classification.type_id = adore_if_ros_msg::TrafficClassification::PEDESTRIAN;
-                            tp.data.shape.type = 1;
-                            tp.data.shape.dimensions.push_back(L);
-                            tp.data.shape.dimensions.push_back(w);
-                            tp.data.shape.dimensions.push_back(H);
+                            adore_ros2_msgs::msg::TrafficParticipantDetection tp;
+                            tp.participant_data.tracking_id = intid;
+                            tp.participant_data.motion_state.time = tSUMO - tSUMO0;
+                            tp.participant_data.classification.type_id = adore_ros2_msgs::msg::TrafficClassification::PEDESTRIAN;
+                            
+                            tp.participant_data.shape.dimensions.push_back(L);
+                            tp.participant_data.shape.dimensions.push_back(w);
+                            tp.participant_data.shape.dimensions.push_back(H);
                             auto geopos = libsumo::Simulation::convertGeo(tracipos.x, tracipos.y, false);
-                            tp.data.motion_state.pose.pose.position.x = geopos.x;
-                            tp.data.motion_state.pose.pose.position.y = geopos.y;
-                            tp.data.motion_state.pose.pose.position.z = 0;
-                            tf2::Quaternion q;
-                            q.setRPY(0.0, 0.0, heading);
-                            tp.data.motion_state.pose.pose.orientation.x = q.getX();
-                            tp.data.motion_state.pose.pose.orientation.y = q.getY();
-                            tp.data.motion_state.pose.pose.orientation.z = q.getZ();
-                            tp.data.motion_state.pose.pose.orientation.w = q.getW();
-                            tp.data.motion_state.twist.twist.linear.x = v;
+                            tp.participant_data.motion_state.x = geopos.x;
+                            tp.participant_data.motion_state.y = geopos.y;
+                            tp.participant_data.motion_state.z = 0;
+                            // nim tf2::Quaternion q;
+                            // nim q.setRPY(0.0, 0.0, heading);
+                            tp.participant_data.motion_state.yaw_angle = heading;
                             // add the traffic participant to the set
                             tpset.data.push_back(tp);
                         }
                     }
 
                     // write the message
-                    publisher_.publish(tpset);
+                    publisher_->publish(tpset);
                 }
             }
             void transferDataRosToSumo()
@@ -380,17 +389,17 @@ namespace adore
                 for (auto pair : rosVehicleSet_.data_)
                 {
                     auto msg = pair.second;
-                    if (std::find(ros_to_sumo_ignore_list_.begin(), ros_to_sumo_ignore_list_.end(), msg.simulationID) !=
+                    if (std::find(ros_to_sumo_ignore_list_.begin(), ros_to_sumo_ignore_list_.end(), msg.participant_data.tracking_id) !=
                         ros_to_sumo_ignore_list_.end())
                     {
                         continue;
                     }
                     std::string sumoid;
-                    auto replacement_id = replacement_ids_.find(msg.simulationID);
+                    auto replacement_id = replacement_ids_.find(msg.participant_data.tracking_id);
                     if (replacement_id == replacement_ids_.end())
                     {
                         std::stringstream ss;
-                        ss << sumo_rosveh_prefix_ << msg.simulationID;
+                        ss << sumo_rosveh_prefix_ << msg.participant_data.tracking_id;
                         sumoid = ss.str();
                     }
                     else
@@ -403,43 +412,43 @@ namespace adore
                         setMaxSpeed(sumoid, 100.0);
                     }
 
-                    auto p = msg.data.motion_state.pose.pose;
-                    tf2::Quaternion q;
-                    q.setValue(p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
-                    tf2::Matrix3x3 m(q);
-                    double roll, pitch, yaw;
-                    m.getRPY(roll, pitch, yaw);
-                    const double heading = (M_PI * 0.5 - yaw) * 180.0 / M_PI;
+                    // nim auto p = msg.data.motion_state.pose.pose;
+                    // nim tf2::Quaternion q;
+                    // nim q.setValue(p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w);
+                    // nim tf2::Matrix3x3 m(q);
+                    // nim double roll, pitch, yaw;
+                    // nim m.getRPY(roll, pitch, yaw);
+                    
+                    
+                    // nim const double heading = (M_PI * 0.5 - yaw) * 180.0 / M_PI;
+                            const double heading = msg.participant_data.motion_state.yaw_angle;
 
-                    auto sumopos = libsumo::Simulation::convertGeo(p.position.x, p.position.y, true);
+                    auto sumopos = libsumo::Simulation::convertGeo(msg.participant_data.motion_state.x, msg.participant_data.motion_state.y, true);
                     // following line: keepRoute=2. see
                     // https://sumo.dlr.de/docs/TraCI/Change_Vehicle_State.html#move_to_xy_0xb4 for details
                     moveToXY(sumoid, "", 0, sumopos.x, sumopos.y, heading, 2);
-                    setSpeed(sumoid, msg.data.motion_state.twist.twist.linear.x);
+                    setSpeed(sumoid, msg.participant_data.motion_state.vx);
                 }
             }
 
-            void init_rosconnection(int argc, char** argv, double rate, std::string nodename)
-            {
-                ros::init(argc, argv, nodename);
-                nh_ = new ros::NodeHandle();
-                ros::Timer rostimer = nh_->createTimer(ros::Duration(1.0 / rate), &SUMOTrafficToROS::runCallback, this);
-                rostimers_.push_back(rostimer);
-            }
+         
             void init_sumo()
             {
+                std::cout << "SUMO INIT"<< std::endl;
                 int port = -1;
-                double step_length = 0.05;
+                step_length = 0.05;
                 std::string cfg_file;
-                nh_->getParam("/sumo/port", port); //relevant only for libtraci
-                nh_->getParam("/sumo/cfg_file", cfg_file);
-                nh_->getParam("/sumo/step_length", step_length);
+                declare_parameter( "sumo config file", "" );
+                get_parameter( "sumo config file", cfg_file);
+                declare_parameter( "sumo step length", 0.01 );
+                get_parameter("sumo step length", step_length);
                 if (cfg_file.empty())
                 {
                     throw std::runtime_error("Error: No config file for sumo provided.");
                 }
                 // cfg_file_ = "/home/fascar/catkin_ws/src/adore/adore_if_ros_demos/demo005.sumocfg";
                 std::vector<std::string> sumoargs;
+                sumoargs.push_back("sumo");
                 sumoargs.push_back("-c");
                 sumoargs.push_back(cfg_file);
                 sumoargs.push_back("--step-length");
@@ -450,12 +459,13 @@ namespace adore
                     sumoargs.push_back(std::to_string(port));
                 }
 
-                while (nh_->ok())
+                while (true)
                 {
                     try
                     {
                         std::cout << "load sumo ..." << std::flush;
-                        libsumo::Simulation::load(sumoargs);
+                       // libsumo::Simulation::load(sumoargs);
+                        libsumo::Simulation::start(sumoargs);
                         std::cout << " done." << std::endl;
                         break;
                     }
@@ -475,34 +485,33 @@ namespace adore
                           << std::endl;
                 tSUMO0 = libsumo::Simulation::getTime();
                 tSUMO = tSUMO0;
-                publisher_ = nh_->advertise<adore_if_ros_msg::TrafficParticipantSetSimulation>("/SIM/"
-                                                                                               "traffic/"
-                                                                                               "agg",
-                                                                                               5);
-                nh_->getParam("PARAMS/V2X_TL/UTMZone", sumotls2ros.utm_zone_);
-                nh_->getParam("PARAMS/V2X_TL/SouthHemi", sumotls2ros.is_south_hemi_);
-                nh_->getParam("PARAMS/V2X_TL/UseSystemTime", sumotls2ros._use_system_time);
-                nh_->getParam("PARAMS/V2X_TL/EnableSPATTiming", sumotls2ros._generate_spat_timing);
-                ROS_INFO_STREAM_ONCE("SPAT/MAP Generation Parameters");
-                ROS_INFO_STREAM_ONCE("-- UTM-Zone: " << sumotls2ros.utm_zone_);
-                ROS_INFO_STREAM_ONCE("-- South. Hemi.: " << sumotls2ros.is_south_hemi_);
-                ROS_INFO_STREAM_ONCE("-- use system time: " << sumotls2ros._use_system_time);
-                ROS_INFO_STREAM_ONCE("-- enable spat timing: " << sumotls2ros._generate_spat_timing);
-                ROS_INFO_STREAM_ONCE("-------------------------------");
-                mapem_publisher_ =
-                    nh_->advertise<adore_v2x_sim::SimMAPEM>("/SIM/v2x/MAPEM",100);
-                spatem_publisher_ =
-                    nh_->advertise<adore_v2x_sim::SimSPATEM>("/SIM/v2x/SPATEM",100);
-                subscriber1_ = nh_->subscribe<std_msgs::Float64>("/SIM/utc", 1, &Timer::receive, &timer_);
-                subscriber2_ = nh_->subscribe<adore_if_ros_msg::TrafficParticipantSimulationConstPtr>(
-                    "/SIM/traffic", 100, &ROSVehicleSet::receive, &rosVehicleSet_);
+                tROS0 = this->get_clock()->now().nanoseconds();
+                ros_time = tROS0;
+                publisher_ = this->create_publisher<adore_ros2_msgs::msg::TrafficParticipantSet>("/ego_vehicle/traffic_participants",5);
+                                                                                               // nim "traffic/"
+                                                                                               // nim "agg",
+                                                                                               // nim 5);
+            // nim    get_parameter("PARAMS/V2X_TL/UTMZone", sumotls2ros.utm_zone_);
+            // nim    get_parameter("PARAMS/V2X_TL/SouthHemi", sumotls2ros.is_south_hemi_);
+            // nim    get_parameter("PARAMS/V2X_TL/UseSystemTime", sumotls2ros._use_system_time);
+            // nim    get_parameter("PARAMS/V2X_TL/EnableSPATTiming", sumotls2ros._generate_spat_timing);
+            // nim    RCLCPP_INFO_STREAM_ONCE(this->get_logger(),"SPAT/MAP Generation Parameters");
+            // nim    RCLCPP_INFO_STREAM_ONCE(this->get_logger(),"-- UTM-Zone: " << sumotls2ros.utm_zone_);
+            // nim    RCLCPP_INFO_STREAM_ONCE(this->get_logger(),"-- South. Hemi.: " << sumotls2ros.is_south_hemi_);
+            // nim    RCLCPP_INFO_STREAM_ONCE(this->get_logger(),"-- use system time: " << sumotls2ros._use_system_time);
+            // nim    RCLCPP_INFO_STREAM_ONCE(this->get_logger(),"-- enable spat timing: " << sumotls2ros._generate_spat_timing);
+            // nim    RCLCPP_INFO_STREAM_ONCE(this->get_logger(),"-------------------------------");
+           // nim     mapem_publisher_ =
+           // nim         this->create_publisher<dsrc_v2_mapem_pdu_descriptions_msgs::msg::MAPEM>("/SIM/v2x/MAPEM", 100);
+            // nim    spatem_publisher_ =
+            // nim        this->create_publisher<dsrc_v2_spatem_pdu_descriptions_msgs::msg::SPATEM>("/SIM/v2x/SPATEM",100);
+                //subscriber1_ = this->create_subscription<std_msgs::msg::Float64>("/SIM/utcccc", 1, std::bind( &Timer::receive, &timer_
+                //                                                                            , std::placeholders::_1 ) );
+                subscriber2_ = this->create_subscription<adore_ros2_msgs::msg::TrafficParticipantDetection>(
+                    "/SIM/traffic", 100, std::bind(&ROSVehicleSet::receive, &rosVehicleSet_, std::placeholders::_1));
                 sumo_rosveh_prefix_ = "rosvehicle";
                 sumo_rosped_prefix_ = "rospedestrian";
                 last_assigned_int_id_ = 1000;
-            }
-            void setRosNodeHandle(ros::NodeHandle* nh)
-            {
-                nh_ = nh;
             }
 
             void closeSumo()
