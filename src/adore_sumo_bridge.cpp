@@ -19,29 +19,29 @@ namespace sumo_if_ros {
 
 SUMOTrafficToROS::SUMOTrafficToROS() : Node("adore_sumo_bridge") {
   timer = this->create_wall_timer(
-      10ms, std::bind(&SUMOTrafficToROS::runCallback, this));
+      10ms, std::bind(&SUMOTrafficToROS::run_callback, this));
   init_sumo();
-  publisher_ =
+  publisher =
       this->create_publisher<adore_ros2_msgs::msg::TrafficParticipantSet>(
           "traffic_participants", 5);
 
-  subscriber_ =
+  subscriber =
       this->create_subscription<adore_ros2_msgs::msg::TrafficParticipant>(
           "vehicle_state/traffic_participant", 1,
-          std::bind(&ROSVehicleSet::receive, &rosVehicleSet_,
+          std::bind(&ROSVehicleSet::receive, &ros_vehicle_set,
                     std::placeholders::_1));
-  sumo_rosveh_prefix_ = "rosvehicle";
-  last_assigned_int_id_ = 1000;  // start sumo ids with 1001
+  sumo_rosveh_prefix = "rosvehicle";
+  last_assigned_int_id = 1000;  // start sumo ids with 1001
 }
 
-int SUMOTrafficToROS::getNewIntID() {
-  if (last_assigned_int_id_ > std::numeric_limits<int>::max() - 2) {
-    last_assigned_int_id_ = 1000;
+int SUMOTrafficToROS::get_new_int_id() {
+  if (last_assigned_int_id > std::numeric_limits<int>::max() - 2) {
+    last_assigned_int_id = 1000;
   }
-  return ++last_assigned_int_id_;
+  return ++last_assigned_int_id;
 }
 
-void SUMOTrafficToROS::removeVehicle(std::string& id) {
+void SUMOTrafficToROS::remove_vehicle(std::string& id) {
   try {
     libsumo::Vehicle::remove(id);
   } catch (...) {
@@ -49,7 +49,7 @@ void SUMOTrafficToROS::removeVehicle(std::string& id) {
   }
 }
 
-void SUMOTrafficToROS::addVehicle(std::string& id) {
+void SUMOTrafficToROS::add_vehicle(std::string& id) {
   try {
     libsumo::Vehicle::add(id, "");
   } catch (...) {
@@ -57,7 +57,7 @@ void SUMOTrafficToROS::addVehicle(std::string& id) {
   }
 }
 
-void SUMOTrafficToROS::setMaxSpeed(std::string& id, double val) {
+void SUMOTrafficToROS::set_max_speed(std::string& id, double val) {
   try {
     libsumo::Vehicle::setMaxSpeed(id, val);
   } catch (...) {
@@ -65,7 +65,7 @@ void SUMOTrafficToROS::setMaxSpeed(std::string& id, double val) {
   }
 }
 
-void SUMOTrafficToROS::setSpeed(std::string& id, double val) {
+void SUMOTrafficToROS::set_speed(std::string& id, double val) {
   try {
     libsumo::Vehicle::setSpeed(id, val);
   } catch (...) {
@@ -73,7 +73,7 @@ void SUMOTrafficToROS::setSpeed(std::string& id, double val) {
   }
 }
 
-void SUMOTrafficToROS::moveToXY(std::string& id, std::string z, int a, double x,
+void SUMOTrafficToROS::move_to_xy(std::string& id, std::string z, int a, double x,
                                 double y, double heading, int b) {
   try {
     libsumo::Vehicle::moveToXY(id, z, a, x, y, heading, b);
@@ -82,10 +82,10 @@ void SUMOTrafficToROS::moveToXY(std::string& id, std::string z, int a, double x,
   }
 }
 
-void SUMOTrafficToROS::runCallback() {
-  if (newStep()) {
-    transferDataSumoToRos();
-    transferDataRosToSumo();
+void SUMOTrafficToROS::run_callback() {
+  if (new_step()) {
+    transfer_data_sumo_to_ros();
+    transfer_data_ros_to_sumo();
   }
 }
 
@@ -101,7 +101,7 @@ double SUMOTrafficToROS::ros_to_sumo_time(rcl_time_point_value_t ros_time) {
   return result;
 }
 
-bool SUMOTrafficToROS::newStep() {
+bool SUMOTrafficToROS::new_step() {
   // returns whether sumo vehicle list is updated
   // synchronize SUMO:
   rcl_time_point_value_t new_ros_time = this->get_clock()->now().nanoseconds();
@@ -119,33 +119,33 @@ bool SUMOTrafficToROS::newStep() {
   }
   if (updated) {
     // get vehicles from sumo
-    vehidlist_ = libsumo::Vehicle::getIDList();
+    veh_id_list = libsumo::Vehicle::getIDList();
     return true;
   }
   return false;
 }
 
-void SUMOTrafficToROS::transferDataSumoToRos() {
+void SUMOTrafficToROS::transfer_data_sumo_to_ros() {
   // traffic participant information
-  if (vehidlist_.size() > 0) {
+  if (veh_id_list.size() > 0) {
     // message for set of traffic participants
     adore_ros2_msgs::msg::TrafficParticipantSet tpset;
-    for (auto& id : vehidlist_) {  // iterate through sumo vehicles
-      if (id.find(sumo_rosveh_prefix_) ==
+    for (auto& id : veh_id_list) {  // iterate through sumo vehicles
+      if (id.find(sumo_rosveh_prefix) ==
           std::string::npos) {  // skip vehicles managed in ros
         // id translation -> match sumo vehicle to intid
         int intid = 0;
-        auto idtranslation = sumovehid2int_.find(id);
-        if (idtranslation == sumovehid2int_.end()) {
-          intid = getNewIntID();
-          sumovehid2int_.emplace(id, intid);
+        auto idtranslation = sumo_veh_id_to_int.find(id);
+        if (idtranslation == sumo_veh_id_to_int.end()) {
+          intid = get_new_int_id();
+          sumo_veh_id_to_int.emplace(id, intid);
         } else {
           intid = idtranslation->second;
         }
         // additional feature: skip vehicle if it is on ignore list
-        if (std::find(sumo_to_ros_ignore_list_.begin(),
-                      sumo_to_ros_ignore_list_.end(),
-                      id) != sumo_to_ros_ignore_list_.end()) {
+        if (std::find(sumo_to_ros_ignore_list.begin(),
+                      sumo_to_ros_ignore_list.end(),
+                      id) != sumo_to_ros_ignore_list.end()) {
           continue;
         }
 
@@ -189,35 +189,35 @@ void SUMOTrafficToROS::transferDataSumoToRos() {
     }
 
     // publish the vehicle data in ros
-    publisher_->publish(tpset);
+    publisher->publish(tpset);
   }
 }
 
-void SUMOTrafficToROS::transferDataRosToSumo() {
+void SUMOTrafficToROS::transfer_data_ros_to_sumo() {
   // update sumo with new information from ros
-  for (auto pair : rosVehicleSet_.data_) {
+  for (auto pair : ros_vehicle_set.data) {
     auto msg = pair.second;
     // additional feature: skip vehicles on ignore list
-    if (std::find(ros_to_sumo_ignore_list_.begin(),
-                  ros_to_sumo_ignore_list_.end(),
-                  msg.tracking_id) != ros_to_sumo_ignore_list_.end()) {
+    if (std::find(ros_to_sumo_ignore_list.begin(),
+                  ros_to_sumo_ignore_list.end(),
+                  msg.tracking_id) != ros_to_sumo_ignore_list.end()) {
       continue;
     }
     std::string sumoid;
     // get sumo id of the ros vehicle
-    auto replacement_id = replacement_ids_.find(msg.tracking_id);
-    if (replacement_id == replacement_ids_.end()) {
+    auto replacement_id = replacement_ids.find(msg.tracking_id);
+    if (replacement_id == replacement_ids.end()) {
       std::stringstream ss;
-      ss << sumo_rosveh_prefix_ << msg.tracking_id;
+      ss << sumo_rosveh_prefix << msg.tracking_id;
       sumoid = ss.str();
     } else {
       sumoid = replacement_id->second;
     }
     // add vehicle in sumo if not yet existent
-    if (std::find(vehidlist_.begin(), vehidlist_.end(), sumoid) ==
-        vehidlist_.end()) {
-      addVehicle(sumoid);
-      setMaxSpeed(sumoid, 100.0);
+    if (std::find(veh_id_list.begin(), veh_id_list.end(), sumoid) ==
+        veh_id_list.end()) {
+      add_vehicle(sumoid);
+      set_max_speed(sumoid, 100.0);
     }
 
     // set speed and position of corresponding sumo vehicle accordingly
@@ -227,8 +227,8 @@ void SUMOTrafficToROS::transferDataRosToSumo() {
     // following line: keepRoute=2. see
     // https://sumo.dlr.de/docs/TraCI/Change_Vehicle_State.html#move_to_xy_0xb4
     // for details
-    moveToXY(sumoid, "", 0, sumopos.x, sumopos.y, heading, 2);
-    setSpeed(sumoid, msg.motion_state.vx);
+    move_to_xy(sumoid, "", 0, sumopos.x, sumopos.y, heading, 2);
+    set_speed(sumoid, msg.motion_state.vx);
   }
 }
 
@@ -279,17 +279,17 @@ void SUMOTrafficToROS::init_sumo() {
   ros_time = tROS0;  // ros time at startup
 }
 
-void SUMOTrafficToROS::closeSumo() { libsumo::Simulation::close(); }
+void SUMOTrafficToROS::close_sumo() { libsumo::Simulation::close(); }
 
 Timer::Timer() : tUTC_(0.0) {}
 void Timer::receive(const std_msgs::msg::Float64& msg) { tUTC_ = msg.data; }
 
 void ROSVehicleSet::receive(
     const adore_ros2_msgs::msg::TrafficParticipant& msg) {
-  if (data_.find(msg.tracking_id) == data_.end()) {
-    data_.emplace(msg.tracking_id, msg);
+  if (data.find(msg.tracking_id) == data.end()) {
+    data.emplace(msg.tracking_id, msg);
   } else {
-    data_[msg.tracking_id] = msg;
+    data[msg.tracking_id] = msg;
   }
 }
 

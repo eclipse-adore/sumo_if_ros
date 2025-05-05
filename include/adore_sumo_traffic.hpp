@@ -43,7 +43,7 @@ struct Timer {
 struct ROSVehicleSet {
  public:
   std::unordered_map<int, adore_ros2_msgs::msg::TrafficParticipant>
-      data_;  ///<- a mapping from vehicle
+      data;  ///<- a mapping from vehicle
               ///< id to
               ///< latest message
   void receive(const adore_ros2_msgs::msg::TrafficParticipant&
@@ -55,26 +55,26 @@ class SUMOTrafficToROS : public rclcpp::Node {
   SUMOTrafficToROS();
 
  protected:
-  ROSVehicleSet rosVehicleSet_;  // ros vehicle data
+  ROSVehicleSet ros_vehicle_set;  // ros vehicle data
 
   rclcpp::Publisher<adore_ros2_msgs::msg::TrafficParticipantSet>::SharedPtr
-      publisher_;  // publisher for sumo traffic data
+      publisher;  // publisher for sumo traffic data
   rclcpp::Subscription<adore_ros2_msgs::msg::TrafficParticipant>::SharedPtr
-      subscriber_;                     // subscription of dynamic vehicle state
-  std::string sumo_rosveh_prefix_;     // prefix for sumo ros vehicles
+      subscriber;                     // subscription of dynamic vehicle state
+  std::string sumo_rosveh_prefix;     // prefix for sumo ros vehicles
   rclcpp::TimerBase::SharedPtr timer;  // main timer
 
   std::unordered_map<std::string, int>
-      sumovehid2int_;         // mapping for id of sumo vehicles
-  int last_assigned_int_id_;  // last used id
+      sumo_veh_id_to_int;         // mapping for id of sumo vehicles
+  int last_assigned_int_id;  // last used id
   std::map<int, std::string>
-      replacement_ids_;  // additional feature to replace certain ids
+      replacement_ids;  // additional feature to replace certain ids
 
-  std::vector<std::string> vehidlist_;  // list of sumo vehicles
+  std::vector<std::string> veh_id_list;  // list of sumo vehicles
   std::vector<std::string>
-      sumo_to_ros_ignore_list_;  // additional feature to ignore certain ids
+      sumo_to_ros_ignore_list;  // additional feature to ignore certain ids
   std::vector<int>
-      ros_to_sumo_ignore_list_;  // additional feature to ignore certain ids
+      ros_to_sumo_ignore_list;  // additional feature to ignore certain ids
 
   rcl_time_point_value_t ros_time;  // current ros time
   rcl_time_point_value_t tROS0;     // ros time at startup
@@ -84,26 +84,26 @@ class SUMOTrafficToROS : public rclcpp::Node {
 
  public:
  protected:
-  int getNewIntID();                              // get new unique integer id
-  void removeVehicle(std::string& id);            // remove vehicle in sumo
-  void addVehicle(std::string& id);               // add vehicle in sumo
-  void setMaxSpeed(std::string& id, double val);  // set max speed in sumo
-  void setSpeed(std::string& id, double val);     // set speed in sumo
-  void moveToXY(std::string& id, std::string z, int a, double x, double y,
+  int get_new_int_id();                              // get new unique integer id
+  void remove_vehicle(std::string& id);            // remove vehicle in sumo
+  void add_vehicle(std::string& id);               // add vehicle in sumo
+  void set_max_speed(std::string& id, double val);  // set max speed in sumo
+  void set_speed(std::string& id, double val);     // set speed in sumo
+  void move_to_xy(std::string& id, std::string z, int a, double x, double y,
                 double heading, int b);  // move vehicle in sumo
 
  public:
-  void runCallback();  // run function triggered by timer
+  void run_callback();  // run function triggered by timer
   rcl_time_point_value_t sumo_to_ros_time(
       double sumo_time);  // conversion of sumo time to ros time
   double ros_to_sumo_time(
       rcl_time_point_value_t ros_time);  // conversion of ros time to sumo time
-  bool newStep();                        // perform new step in sumo
-  void transferDataSumoToRos();          // transfer data from sumo to ros
-  void transferDataRosToSumo();          // transfer data from ros to sumo
+  bool new_step();                        // perform new step in sumo
+  void transfer_data_sumo_to_ros();          // transfer data from sumo to ros
+  void transfer_data_ros_to_sumo();          // transfer data from ros to sumo
 
   void init_sumo();  // initialize sumo
-  void closeSumo();  // close sumo
+  void close_sumo();  // close sumo
 };
 }  // namespace sumo_if_ros
 }  // namespace adore
