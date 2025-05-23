@@ -10,6 +10,7 @@ include(requirements.cmake)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 # Ensure the Release build uses -O3 for optimization
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   add_compile_options(-O3)
 endif()

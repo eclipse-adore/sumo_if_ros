@@ -168,9 +168,9 @@ void SUMOTrafficToROS::transfer_data_sumo_to_ros() {
           tp.participant_data.motion_state.time = tSUMO - tSUMO0;
           tp.participant_data.classification.type_id =
               adore_ros2_msgs::msg::TrafficClassification::CAR;
-          tp.participant_data.shape.dimensions.push_back(L);
-          tp.participant_data.shape.dimensions.push_back(w);
-          tp.participant_data.shape.dimensions.push_back(H);
+          tp.participant_data.physical_parameters.body_height = H;
+          tp.participant_data.physical_parameters.body_length = L;
+          tp.participant_data.physical_parameters.body_width = w;
           auto geopos =
               libsumo::Simulation::convertGeo(tracipos.x, tracipos.y, false);
           tp.participant_data.motion_state.x = geopos.x;
