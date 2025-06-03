@@ -12,14 +12,14 @@ find_package(tf2_msgs REQUIRED)
 
 
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../vendor/build/sumo/bin")
-list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../vendor/build/sumo/bin")
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../vendor/build/sumo/build")
-list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../vendor/build/sumo/build")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../../vendor/build/sumo/bin")
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../../vendor/build/sumo/bin")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../../vendor/build/sumo/build")
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../../vendor/build/sumo/build")
 
 find_library(SUMOCPP_LIBRARY
              NAMES sumocpp
-             PATHS ${CMAKE_CURRENT_SOURCE_DIR}/../../../vendor/build/sumo/bin
+             PATHS ${CMAKE_CURRENT_SOURCE_DIR}/../../../../vendor/build/sumo/bin
              REQUIRED)
 
 

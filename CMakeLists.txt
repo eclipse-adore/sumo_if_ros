@@ -23,7 +23,7 @@ target_link_libraries(${PROJECT} PUBLIC ${SUMOCPP_LIBRARY} gdal)
 
 target_include_directories(${PROJECT} PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../vendor/sumo/sumo/src/>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../../vendor/sumo/sumo/src/>
     $<INSTALL_INTERFACE:include>
 )
 
