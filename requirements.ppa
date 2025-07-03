@@ -1,0 +1,8 @@
+## User APT PPA repositories for the ADORe CLI
+
+# Add any necessary PPAs here, one PPA per line, in the format `ppa:user/repository`.
+# After adding or modifying this file, run `make build` to rebuild the ADORe CLI
+# docker context and apply the changes.
+
+
+ppa:sumo/stable
