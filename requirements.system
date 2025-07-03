@@ -7,3 +7,10 @@ libgdal-dev
 libgdal34t64
 libproj-dev
 libproj25
+
+## Requires sumo ppa: ppa:sumo/stable
+sumo 
+sumo-tools 
+sumo-doc
+
+
