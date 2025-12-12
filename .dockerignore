@@ -1,16 +1,10 @@
 **/build
 **/.build
-sumo_if_ros/build
+sumo_bridge/build
 sumo/sumo/.build
-v2x_if_ros_msg/v2x_if_ros_msg/build
 **.docker_build**
 **lizard_report.**
 **cppcheck.log
 **lint.log
 
-sumo_if_ros/cmake-build/
-
-cppcheck_docker
-lizard_docker
-cpplint_docker
-make_gadgets
+sumo_bridge/cmake-build/

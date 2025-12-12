@@ -1,0 +1,16 @@
+libxerces-c-dev
+libeigen3-dev
+libgl2ps-dev
+libfox-1.6-0
+libfox-1.6-dev
+libgdal-dev
+libgdal34t64
+libproj-dev
+libproj25
+
+## Requires sumo ppa: ppa:sumo/stable
+sumo 
+sumo-tools 
+sumo-doc
+
+
