@@ -9,8 +9,9 @@ libproj-dev
 libproj25
 
 ## Requires sumo ppa: ppa:sumo/stable
-sumo 
+##sumo 
 sumo-tools 
-sumo-doc
+sumo-dev
+##sumo-doc
 
 
