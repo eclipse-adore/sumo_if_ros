@@ -283,16 +283,19 @@ SUMOTrafficToROS::init_sumo()
   int port    = -1;
   step_length = 0.05;
   std::string cfg_file;
-  declare_parameter( "sumo config file", "" );
-  get_parameter( "sumo config file", cfg_file );
-  declare_parameter( "sumo step length", 0.01 );
-  get_parameter( "sumo step length", step_length );
+  declare_parameter( "sumo_config_file", "" );
+  get_parameter( "sumo_config_file", cfg_file );
+  declare_parameter( "sumo_step_length", 0.01 );
+  get_parameter( "sumo_step_length", step_length );
   if( cfg_file.empty() )
   {
     throw std::runtime_error( "Error: No config file for sumo provided." );
   }
+  bool use_gui = false;
+  declare_parameter( "use_gui", false );
+  get_parameter( "use_gui", use_gui );
   std::vector<std::string> sumoargs;
-  sumoargs.push_back( "sumo" );
+  sumoargs.push_back( use_gui ? "sumo-gui" : "sumo" );
   sumoargs.push_back( "-c" );
   sumoargs.push_back( cfg_file );
   sumoargs.push_back( "--step-length" );
