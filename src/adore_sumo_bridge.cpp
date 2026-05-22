@@ -25,7 +25,7 @@ SUMOTrafficToROS::SUMOTrafficToROS() :
   init_sumo();
   publisher = this->create_publisher<adore_ros2_msgs::msg::TrafficParticipantSet>( "traffic_participants", 5 );
 
-  subscriber           = this->create_subscription<adore_ros2_msgs::msg::TrafficParticipant>( "vehicle_state/traffic_participant", 1,
+  subscriber           = this->create_subscription<adore_ros2_msgs::msg::TrafficParticipant>( "simulated_traffic_participant", 1,
                                                                                               std::bind( &ROSVehicleSet::receive, &ros_vehicle_set,
                                                                                                          std::placeholders::_1 ) );
   sumo_rosveh_prefix   = "rosvehicle";

@@ -52,7 +52,7 @@ ros2 run sumo_bridge sumo_bridge --ros-args \
 | Topic | Type | Direction | Description |
 |---|---|---|---|
 | `traffic_participants` | `TrafficParticipantSet` | publish | SUMO vehicles converted to ADORe traffic participants |
-| `vehicle_state/traffic_participant` | `TrafficParticipant` | subscribe | Ego vehicle state injected into SUMO |
+| `simulated_traffic_participant` | `TrafficParticipant` | subscribe | Ego vehicle state injected into SUMO |
 
 ## Launch
 
