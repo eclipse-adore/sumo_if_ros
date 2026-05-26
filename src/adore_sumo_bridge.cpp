@@ -141,6 +141,7 @@ SUMOTrafficToROS::new_step()
   rcl_time_point_value_t new_ros_time             = this->get_clock()->now().nanoseconds();
   double                 new_target_time_for_sumo = ros_to_sumo_time( new_ros_time - tROS0 ) + tSUMO0;
   bool                   updated                  = false; // flag indicates whether sumo is actually updated
+  //std::cout << "new_ros_time: " << new_ros_time << " new_target_sumo: " << new_target_time_for_sumo<< " tSUMO0: " << tSUMO0  << " tROS0: " << tROS0 <<std::endl<<std::endl;
   while( new_target_time_for_sumo - tSUMO > 0.9 * step_length )
   {
     libsumo::Simulation::step();
@@ -151,6 +152,7 @@ SUMOTrafficToROS::new_step()
     }
     tSUMO   = tSUMO_new;
     updated = true;
+    //std::cout << "tSUMO_new: " << tSUMO_new << std::endl<<std::endl;
   }
   if( updated )
   {
@@ -219,6 +221,7 @@ SUMOTrafficToROS::transfer_data_sumo_to_ros()
           tp.participant_data.motion_state.yaw_angle          = heading;
           tp.participant_data.motion_state.vx                 = v;
           tp.participant_data.motion_state.vy                 = v_lat;
+          tp.participant_data.motion_state.header.frame_id    = "world";
           // add the traffic participant to the set
           tpset.data.push_back( tp );
         }
@@ -230,6 +233,7 @@ SUMOTrafficToROS::transfer_data_sumo_to_ros()
     }
 
     // publish the vehicle data in ros
+    tpset.header.frame_id = "world";
     publisher->publish( tpset );
   }
 }
@@ -285,7 +289,7 @@ SUMOTrafficToROS::init_sumo()
   std::string cfg_file;
   declare_parameter( "sumo_config_file", "" );
   get_parameter( "sumo_config_file", cfg_file );
-  declare_parameter( "sumo_step_length", 0.01 );
+  declare_parameter( "sumo_step_length", 0.05 );
   get_parameter( "sumo_step_length", step_length );
   if( cfg_file.empty() )
   {
