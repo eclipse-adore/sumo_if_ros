@@ -13,12 +13,14 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 find_package(SUMO REQUIRED)
+find_package(adore_map REQUIRED)
 
 add_executable(${PROJECT} src/adore_sumo_bridge.cpp)
 
 ament_target_dependencies(${PROJECT}
   rclcpp
   adore_ros2_msgs
+  adore_map
 )
 
 target_link_libraries(${PROJECT}

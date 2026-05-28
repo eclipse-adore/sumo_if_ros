@@ -84,6 +84,9 @@ protected:
   double                 tSUMO;       // current sumo time
   double                 step_length; // step length in s
 
+  int                    utm_zone;
+  std::string            utm_letter;
+
 public:
 
 protected:

@@ -12,6 +12,7 @@
  ********************************************************************************/
 
 #include "adore_sumo_traffic.hpp"
+#include <adore_map/lat_long_conversions.hpp>
 
 namespace adore
 {
@@ -22,6 +23,12 @@ SUMOTrafficToROS::SUMOTrafficToROS() :
   Node( "adore_sumo_bridge" )
 {
   timer = this->create_wall_timer( 10ms, std::bind( &SUMOTrafficToROS::run_callback, this ) );
+  
+  int ego_vehicle_start_utm_zone_number = declare_parameter<int>( "utm_zone", 32 );
+  std::string ego_vehicle_start_utm_zone_letter = declare_parameter<std::string>( "utm_letter", "U" );
+  utm_zone = ego_vehicle_start_utm_zone_number;
+  utm_letter = ego_vehicle_start_utm_zone_letter;
+  
   init_sumo();
   publisher = this->create_publisher<adore_ros2_msgs::msg::TrafficParticipantSet>( "traffic_participants", 5 );
 
@@ -215,8 +222,9 @@ SUMOTrafficToROS::transfer_data_sumo_to_ros()
           tp.participant_data.physical_parameters.body_length = L;
           tp.participant_data.physical_parameters.body_width  = w;
           auto geopos                                         = libsumo::Simulation::convertGeo( tracipos.x, tracipos.y, false );
-          tp.participant_data.motion_state.x                  = geopos.x;
-          tp.participant_data.motion_state.y                  = geopos.y;
+          auto utm = map::convert_lat_lon_to_utm( geopos.y, geopos.x);
+          tp.participant_data.motion_state.x                  = utm[0];
+          tp.participant_data.motion_state.y                  = utm[1];
           tp.participant_data.motion_state.z                  = 0;
           tp.participant_data.motion_state.yaw_angle          = heading;
           tp.participant_data.motion_state.vx                 = v;
@@ -272,7 +280,9 @@ SUMOTrafficToROS::transfer_data_ros_to_sumo()
 
     // set speed and position of corresponding sumo vehicle accordingly
     const double heading = msg.motion_state.yaw_angle;
-    auto         sumopos = libsumo::Simulation::convertGeo( msg.motion_state.x, msg.motion_state.y, true );
+    auto position_lat_lon = map::convert_utm_to_lat_lon( msg.motion_state.x, msg.motion_state.y, utm_zone, utm_letter);
+    //auto         sumopos = libsumo::Simulation::convertGeo( msg.motion_state.x, msg.motion_state.y, true );
+    auto         sumopos = libsumo::Simulation::convertGeo( position_lat_lon[1], position_lat_lon[0], true );
     // following line: keepRoute=2. see
     // https://sumo.dlr.de/docs/TraCI/Change_Vehicle_State.html#move_to_xy_0xb4
     // for details
