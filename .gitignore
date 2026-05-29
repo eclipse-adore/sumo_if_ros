@@ -6,3 +6,7 @@ sumo/sumo/build/*
 **lint_report.log
 .log
 sumo_bridge/cmake-build/
+sumo_configs/example_scenario/edgeData.xml
+sumo_configs/example_scenario/stats.xml
+sumo_configs/example_scenario/tripinfos.xml
+
