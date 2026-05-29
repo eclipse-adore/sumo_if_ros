@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2026-05-28T22:03:36.103155+01:00 by Eclipse SUMO libsumo 1.27.0
-<libsumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/libsumoConfiguration.xsd">
+<!-- generated on 2026-05-29T14:20:57.201249+01:00 by 
+<Configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/Configuration.xsd">
 
     <input>
-        <net-file value="/home/matthias/Desktop/sumoconf/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/osm.net.xml.gz"/>
-        <route-files value="/home/matthias/Desktop/sumoconf/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/osm.passenger.trips.xml"/>
-        <additional-files value="/home/matthias/Desktop/sumoconf/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/osm.poly.xml.gz,/home/matthias/Desktop/sumoconf/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/output.add.xml"/>
+        <net-file value="/home/akoerner/repos/csa/adore_revert/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/osm.net.xml.gz"/>
+        <route-files value="/home/akoerner/repos/csa/adore_revert/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/osm.passenger.trips.xml"/>
+        <additional-files value="/home/akoerner/repos/csa/adore_revert/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/osm.poly.xml.gz,/home/akoerner/repos/csa/adore_revert/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/output.add.xml"/>
     </input>
 
     <output>
-        <tripinfo-output value="/home/matthias/Desktop/sumoconf/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/tripinfos.xml"/>
-        <statistic-output value="/home/matthias/Desktop/sumoconf/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/stats.xml"/>
+        <tripinfo-output value="/home/akoerner/repos/csa/adore_revert/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/tripinfos.xml"/>
+        <statistic-output value="/home/akoerner/repos/csa/adore_revert/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/stats.xml"/>
     </output>
 
     <time>
@@ -35,17 +35,11 @@
     </report>
 
     <gui_only>
-        <gui-settings-file value="/home/matthias/Desktop/sumoconf/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/example_scenario/osm.view.xml"/>
+        <gui-settings-file value="/home/akoerner/repos/csa/adore_revert/adore/ros2_workspace/src/adore_interfaces/sumo_bridge/sumo_configs/gui_settings.xml"/>
+        <start value="true"/>
     </gui_only>
 
-</libsumoConfiguration>
+</Configuration>
 -->
 
 <tripinfos xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/tripinfo_file.xsd">
-    <tripinfo id="veh4" depart="25.30" departLane="-1426544819#0_0" departPos="5.10" departSpeed="13.89" departDelay="0.02" arrival="79.35" arrivalLane="-222114077#0_0" arrivalPos="24.89" arrivalSpeed="14.25" duration="54.05" routeLength="737.52" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="1.85" rerouteNo="1" devices="tripinfo_veh4 routing_veh4" vType="veh_passenger" speedFactor="1.03" vaporized=""/>
-    <tripinfo id="veh2" depart="12.65" departLane="30253922#1_0" departPos="5.10" departSpeed="8.33" departDelay="0.01" arrival="119.50" arrivalLane="-10903000#1_0" arrivalPos="91.50" arrivalSpeed="14.01" duration="106.85" routeLength="1188.97" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="6.54" rerouteNo="1" devices="tripinfo_veh2 routing_veh2" vType="veh_passenger" speedFactor="1.01" vaporized=""/>
-    <tripinfo id="veh8" depart="50.60" departLane="-30253922#3_0" departPos="5.10" departSpeed="7.81" departDelay="0.04" arrival="136.05" arrivalLane="-321638052#2_0" arrivalPos="213.44" arrivalSpeed="13.01" duration="85.45" routeLength="800.23" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="3.97" rerouteNo="1" devices="tripinfo_veh8 routing_veh8" vType="veh_passenger" speedFactor="0.94" vaporized=""/>
-    <tripinfo id="veh6" depart="37.95" departLane="-30253922#4_0" departPos="5.10" departSpeed="8.71" departDelay="0.03" arrival="139.15" arrivalLane="24323953_0" arrivalPos="29.96" arrivalSpeed="14.52" duration="101.20" routeLength="939.62" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="3.45" rerouteNo="1" devices="tripinfo_veh6 routing_veh6" vType="veh_passenger" speedFactor="1.05" vaporized=""/>
-    <tripinfo id="veh7" depart="44.25" departLane="-13972654_0" departPos="5.10" departSpeed="14.77" departDelay="0.01" arrival="146.75" arrivalLane="-5640229#0_0" arrivalPos="115.78" arrivalSpeed="7.36" duration="102.50" routeLength="1032.07" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="2.06" rerouteNo="1" devices="tripinfo_veh7 routing_veh7" vType="veh_passenger" speedFactor="0.89" vaporized=""/>
-    <tripinfo id="veh5" depart="31.60" departLane="10903000#0_0" departPos="5.10" departSpeed="11.54" departDelay="0.00" arrival="166.80" arrivalLane="5640227_0" arrivalPos="3.08" arrivalSpeed="6.90" duration="135.20" routeLength="1470.90" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="3.67" rerouteNo="1" devices="tripinfo_veh5 routing_veh5" vType="veh_passenger" speedFactor="0.83" vaporized=""/>
-    <tripinfo id="veh21" depart="132.75" departLane="-24323977#1_0" departPos="5.10" departSpeed="14.03" departDelay="0.04" arrival="192.95" arrivalLane="-151627458#1_0" arrivalPos="392.10" arrivalSpeed="14.00" duration="60.20" routeLength="772.29" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="3.21" rerouteNo="1" devices="tripinfo_veh21 routing_veh21" vType="veh_passenger" speedFactor="1.01" vaporized=""/>

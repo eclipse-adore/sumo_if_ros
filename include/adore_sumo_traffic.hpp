@@ -42,17 +42,15 @@ public:
 
   double tUTC_;
   Timer();
-  void receive( const std_msgs::msg::Float64& msg ); // callback for ros time
+  void receive( const std_msgs::msg::Float64& msg );
 };
 
 struct ROSVehicleSet
 {
 public:
 
-  std::unordered_map<int, adore_ros2_msgs::msg::TrafficParticipant> data; ///<- a mapping from vehicle
-                                                                          ///< id to
-                                                                          ///< latest message
-  void receive( const adore_ros2_msgs::msg::TrafficParticipant& msg );    // callback for receiving ros vehicle data
+  std::unordered_map<int, adore_ros2_msgs::msg::TrafficParticipant> data;
+  void receive( const adore_ros2_msgs::msg::TrafficParticipant& msg );
 };
 
 class SUMOTrafficToROS : public rclcpp::Node
@@ -63,52 +61,70 @@ public:
 
 protected:
 
-  ROSVehicleSet ros_vehicle_set; // ros vehicle data
+  ROSVehicleSet ros_vehicle_set;
 
-  rclcpp::Publisher<adore_ros2_msgs::msg::TrafficParticipantSet>::SharedPtr publisher;          // publisher for sumo traffic data
-  rclcpp::Subscription<adore_ros2_msgs::msg::TrafficParticipant>::SharedPtr subscriber;         // subscription of dynamic vehicle state
-  std::string                                                               sumo_rosveh_prefix; // prefix for sumo ros vehicles
-  rclcpp::TimerBase::SharedPtr                                              timer;              // main timer
+  rclcpp::Publisher<adore_ros2_msgs::msg::TrafficParticipantSet>::SharedPtr publisher;
+  rclcpp::Subscription<adore_ros2_msgs::msg::TrafficParticipant>::SharedPtr subscriber;
+  std::string                                                               sumo_rosveh_prefix;
+  rclcpp::TimerBase::SharedPtr                                              timer;
 
-  std::unordered_map<std::string, int> sumo_veh_id_to_int;   // mapping for id of sumo vehicles
-  int                                  last_assigned_int_id; // last used id
-  std::map<int, std::string>           replacement_ids;      // additional feature to replace certain ids
+  std::unordered_map<std::string, int> sumo_veh_id_to_int;
+  int                                  last_assigned_int_id;
+  std::map<int, std::string>           replacement_ids;
 
-  std::vector<std::string> veh_id_list;             // list of sumo vehicles
-  std::vector<std::string> sumo_to_ros_ignore_list; // additional feature to ignore certain ids
-  std::vector<int>         ros_to_sumo_ignore_list; // additional feature to ignore certain ids
+  std::vector<std::string> veh_id_list;
+  std::vector<std::string> sumo_to_ros_ignore_list;
+  std::vector<int>         ros_to_sumo_ignore_list;
 
-  rcl_time_point_value_t ros_time;    // current ros time
-  rcl_time_point_value_t tROS0;       // ros time at startup
-  double                 tSUMO0;      // sumo time at startup
-  double                 tSUMO;       // current sumo time
-  double                 step_length; // step length in s
+  rcl_time_point_value_t ros_time;
+  rcl_time_point_value_t tROS0;
+  double                 tSUMO0;
+  double                 tSUMO;
+  double                 step_length;
 
-  int                    utm_zone;
-  std::string            utm_letter;
+  int         utm_zone;
+  std::string utm_letter;
 
-public:
+  bool                 use_gui_;
+  bool                 gui_tracking_set_;
+  bool                 gui_follow_ego_;
+  bool                 use_geo_conversion_;
+  double               gui_zoom_;
+  int                  ego_tracking_id_;
+  libsumo::TraCIColor  ego_vehicle_color_;
+
+  double      ego_start_x_;
+  double      ego_start_y_;
+  double      ego_start_heading_deg_;
+  double      ego_start_sumo_x_;
+  double      ego_start_sumo_y_;
+
+  int         initial_traffic_count_;
+  double      initial_traffic_spacing_;
 
 protected:
 
-  int  get_new_int_id();                                                                               // get new unique integer id
-  void remove_vehicle( std::string& id );                                                              // remove vehicle in sumo
-  void add_vehicle( std::string& id );                                                                 // add vehicle in sumo
-  void set_max_speed( std::string& id, double val );                                                   // set max speed in sumo
-  void set_speed( std::string& id, double val );                                                       // set speed in sumo
-  void move_to_xy( std::string& id, std::string z, int a, double x, double y, double heading, int b ); // move vehicle in sumo
+  int  get_new_int_id();
+  void remove_vehicle( std::string& id );
+  void add_vehicle( std::string& id );
+  void set_max_speed( std::string& id, double val );
+  void set_speed( std::string& id, double val );
+  void move_to_xy( std::string& id, std::string z, int a, double x, double y, double heading, int b );
+
+  void parse_ego_start_position( const std::string& position_str );
+  void spawn_initial_traffic();
 
 public:
 
-  void                   run_callback();                                      // run function triggered by timer
-  rcl_time_point_value_t sumo_to_ros_time( double sumo_time );                // conversion of sumo time to ros time
-  double                 ros_to_sumo_time( rcl_time_point_value_t ros_time ); // conversion of ros time to sumo time
-  bool                   new_step();                                          // perform new step in sumo
-  void                   transfer_data_sumo_to_ros();                         // transfer data from sumo to ros
-  void                   transfer_data_ros_to_sumo();                         // transfer data from ros to sumo
+  void                   run_callback();
+  rcl_time_point_value_t sumo_to_ros_time( double sumo_time );
+  double                 ros_to_sumo_time( rcl_time_point_value_t ros_time );
+  bool                   new_step();
+  void                   transfer_data_sumo_to_ros();
+  void                   transfer_data_ros_to_sumo();
 
-  void init_sumo();  // initialize sumo
-  void close_sumo(); // close sumo
+  void init_sumo();
+  void close_sumo();
 };
 } // namespace sumo_if_ros
 } // namespace adore
