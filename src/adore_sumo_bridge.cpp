@@ -25,16 +25,16 @@ namespace sumo_if_ros
 SUMOTrafficToROS::SUMOTrafficToROS() :
   Node( "adore_sumo_bridge" )
 {
+  sumo_rosveh_prefix   = "rosvehicle";
+  last_assigned_int_id = 1000;
+
   timer = this->create_wall_timer( 10ms, std::bind( &SUMOTrafficToROS::run_callback, this ) );
 
   init_sumo();
-  publisher = this->create_publisher<adore_ros2_msgs::msg::TrafficParticipantSet>( "traffic_participants", 5 );
-
-  subscriber           = this->create_subscription<adore_ros2_msgs::msg::TrafficParticipant>( "simulated_traffic_participant", 1,
-                                                                                              std::bind( &ROSVehicleSet::receive, &ros_vehicle_set,
-                                                                                                         std::placeholders::_1 ) );
-  sumo_rosveh_prefix   = "rosvehicle";
-  last_assigned_int_id = 1000; // start sumo ids with 1001
+  publisher  = this->create_publisher<adore_ros2_msgs::msg::TrafficParticipantSet>( "traffic_participants", 5 );
+  subscriber = this->create_subscription<adore_ros2_msgs::msg::TrafficParticipant>( "simulated_traffic_participant", 1,
+                                                                                    std::bind( &ROSVehicleSet::receive, &ros_vehicle_set,
+                                                                                               std::placeholders::_1 ) );
 }
 
 // Parse "lat,lon,psi" string and populate ego start members.
@@ -60,7 +60,7 @@ SUMOTrafficToROS::parse_ego_start_position( const std::string& position_str )
   // derive utm_zone and utm_letter from lat/lon via adore map conversion
   auto utm_coords = map::convert_lat_lon_to_utm( lat, lon );
   utm_zone   = static_cast<int>( utm_coords[2] );
-  utm_letter = utm_coords[3] > 0 ? "N" : "U";
+  utm_letter = utm_coords[3] > 0 ? "U" : "S";
 
   ego_start_x_           = utm_coords[0];
   ego_start_y_           = utm_coords[1];
@@ -254,7 +254,6 @@ SUMOTrafficToROS::transfer_data_sumo_to_ros()
   // traffic participant information
   if( veh_id_list.size() > 0 )
   {
-    // message for set of traffic participants
     adore_ros2_msgs::msg::TrafficParticipantSet tpset;
     for( auto& id : veh_id_list )
     { // iterate through sumo vehicles
@@ -311,8 +310,8 @@ SUMOTrafficToROS::transfer_data_sumo_to_ros()
           {
             auto geopos = libsumo::Simulation::convertGeo( centre_x, centre_y, false );
             auto utm    = map::convert_lat_lon_to_utm( geopos.y, geopos.x );
-            pos_x = utm[0];
-            pos_y = utm[1];
+            pos_x = utm[0] - ego_start_x_;
+            pos_y = utm[1] - ego_start_y_;
           }
           else
           {
@@ -326,7 +325,7 @@ SUMOTrafficToROS::transfer_data_sumo_to_ros()
           tp.participant_data.motion_state.vx                 = v;
           tp.participant_data.motion_state.vy                 = v_lat;
           tp.participant_data.motion_state.header.frame_id    = "world";
-          // add the traffic participant to the set
+          tp.participant_data.motion_state.header.stamp       = this->get_clock()->now();
           tpset.data.push_back( tp );
         }
         catch( ... )
@@ -336,9 +335,10 @@ SUMOTrafficToROS::transfer_data_sumo_to_ros()
       }
     }
 
-    // publish the vehicle data in ros
     tpset.header.frame_id = "world";
-    publisher->publish( tpset );
+    tpset.header.stamp    = this->get_clock()->now();
+    if( publisher )
+      publisher->publish( tpset );
   }
 }
 
@@ -426,50 +426,59 @@ SUMOTrafficToROS::transfer_data_ros_to_sumo()
   }
 }
 
-// Walk along lane shape geometry by a given distance from a start position on the lane,
-// returning the xy position and heading at that point. Used to place spawned vehicles
-// on the road at exact lane-following distances rather than straight-line offsets.
+// Walk along the road network by a given distance from a start position,
+// following successor lanes across lane boundaries.
+// Returns the edge, lane position, xy, and heading at the target distance.
 static bool
-walk_along_lane( const std::string& lane_id, double start_pos, double walk_distance,
-                 double& out_x, double& out_y, double& out_heading_deg )
+walk_along_network( const std::string& start_lane_id, double start_pos, double walk_distance,
+                    std::string& out_edge_id, double& out_lane_pos,
+                    double& out_x, double& out_y, double& out_heading_deg )
 {
-  try
-  {
-    // TraCIPositionVector wraps std::vector<TraCIPosition> in .value
-    auto pts         = libsumo::Lane::getShape( lane_id ).value;
-    double lane_len  = libsumo::Lane::getLength( lane_id );
-    double target    = std::min( start_pos + walk_distance, lane_len - 0.5 );
-    double travelled = 0.0;
+  std::string current_lane = start_lane_id;
+  double      remaining    = walk_distance;
 
-    for( size_t i = 0; i + 1 < pts.size(); ++i )
-    {
-      double seg_dx  = pts[i + 1].x - pts[i].x;
-      double seg_dy  = pts[i + 1].y - pts[i].y;
-      double seg_len = std::sqrt( seg_dx * seg_dx + seg_dy * seg_dy );
-      if( travelled + seg_len >= target )
-      {
-        double t        = ( target - travelled ) / seg_len;
-        out_x           = pts[i].x + t * seg_dx;
-        out_y           = pts[i].y + t * seg_dy;
-        out_heading_deg = std::fmod( 90.0 - std::atan2( seg_dy, seg_dx ) * 180.0 / M_PI + 360.0, 360.0 );
-        return true;
-      }
-      travelled += seg_len;
-    }
-    // clamp to end of lane
-    auto& last      = pts.back();
-    auto& prev      = pts[pts.size() - 2];
-    out_x           = last.x;
-    out_y           = last.y;
-    double seg_dx   = last.x - prev.x;
-    double seg_dy   = last.y - prev.y;
-    out_heading_deg = std::fmod( 90.0 - std::atan2( seg_dy, seg_dx ) * 180.0 / M_PI + 360.0, 360.0 );
-    return true;
-  }
-  catch( ... )
+  for( int depth = 0; depth < 20; ++depth )
   {
-    return false;
+    try
+    {
+      auto   pts      = libsumo::Lane::getShape( current_lane ).value;
+      double lane_len = libsumo::Lane::getLength( current_lane );
+      double target   = start_pos + remaining;
+
+      if( target <= lane_len - 1.0 )
+      {
+        // target is within this lane
+        double travelled = 0.0;
+        for( size_t i = 0; i + 1 < pts.size(); ++i )
+        {
+          double seg_dx  = pts[i + 1].x - pts[i].x;
+          double seg_dy  = pts[i + 1].y - pts[i].y;
+          double seg_len = std::sqrt( seg_dx * seg_dx + seg_dy * seg_dy );
+          if( travelled + seg_len >= target )
+          {
+            double t        = ( target - travelled ) / seg_len;
+            out_x           = pts[i].x + t * seg_dx;
+            out_y           = pts[i].y + t * seg_dy;
+            out_heading_deg = std::fmod( 90.0 - std::atan2( seg_dy, seg_dx ) * 180.0 / M_PI + 360.0, 360.0 );
+            out_edge_id     = current_lane.substr( 0, current_lane.rfind( '_' ) );
+            out_lane_pos    = target;
+            return true;
+          }
+          travelled += seg_len;
+        }
+      }
+
+      // need to continue onto a successor lane
+      remaining -= ( lane_len - start_pos );
+      start_pos  = 0.0;
+
+      auto links = libsumo::Lane::getLinks( current_lane );
+      if( links.empty() ) return false;
+      current_lane = links[0].approachedLane;
+    }
+    catch( ... ) { return false; }
   }
+  return false;
 }
 
 void
@@ -540,6 +549,68 @@ SUMOTrafficToROS::spawn_initial_traffic()
     return route;
   };
 
+  if( start_edge_id.empty() )
+  {
+    std::cout << "spawn_initial_traffic: no start edge, skipping" << std::endl;
+    return;
+  }
+
+  // build a single long route from the ego start edge that all spawned vehicles share,
+  // so they are placed on the ego's actual forward path rather than random junctions
+  auto ego_route = build_forward_route( start_edge_id, 100,
+                                        static_cast<unsigned int>( std::hash<std::string>{}( "ego_spawn_route" ) ) );
+  if( ego_route.size() < 2 )
+  {
+    std::cout << "spawn_initial_traffic: could not build ego forward route, skipping" << std::endl;
+    return;
+  }
+
+  // walk along the ego route edges to find spawn positions at each spacing interval
+  // by following the route sequence rather than arbitrary lane links
+  auto walk_along_route = [&]( const std::vector<std::string>& route, double start_pos, double target_dist,
+                                std::string& out_edge, double& out_lane_pos,
+                                double& out_x, double& out_y, double& out_heading ) -> bool
+  {
+    double remaining = target_dist;
+    for( const auto& edge : route )
+    {
+      std::string lane_id = edge + "_0";
+      try
+      {
+        double lane_len = libsumo::Lane::getLength( lane_id );
+        double avail    = lane_len - start_pos - 1.0;
+        if( avail <= 0.0 ) { start_pos = 0.0; continue; }
+        if( remaining <= avail )
+        {
+          double target = start_pos + remaining;
+          auto   pts    = libsumo::Lane::getShape( lane_id ).value;
+          double travelled = 0.0;
+          for( size_t i = 0; i + 1 < pts.size(); ++i )
+          {
+            double dx  = pts[i+1].x - pts[i].x;
+            double dy  = pts[i+1].y - pts[i].y;
+            double seg = std::sqrt( dx*dx + dy*dy );
+            if( travelled + seg >= target )
+            {
+              double t   = ( target - travelled ) / seg;
+              out_x      = pts[i].x + t * dx;
+              out_y      = pts[i].y + t * dy;
+              out_heading = std::fmod( 90.0 - std::atan2( dy, dx ) * 180.0 / M_PI + 360.0, 360.0 );
+              out_edge    = edge;
+              out_lane_pos = target;
+              return true;
+            }
+            travelled += seg;
+          }
+        }
+        remaining -= avail;
+        start_pos = 0.0;
+      }
+      catch( ... ) { start_pos = 0.0; }
+    }
+    return false;
+  };
+
   for( int i = 0; i < initial_traffic_count_; ++i )
   {
     std::string  id       = "sumo_spawned_" + std::to_string( i );
@@ -547,39 +618,27 @@ SUMOTrafficToROS::spawn_initial_traffic()
     double spawn_x        = ego_start_sumo_x_;
     double spawn_y        = ego_start_sumo_y_;
     double spawn_heading  = ego_start_heading_deg_;
+    std::string spawn_edge_id;
+    double      spawn_lane_pos = 0.0;
 
-    if( !start_lane_id.empty() )
+    if( !walk_along_route( ego_route, start_lane_pos, distance,
+                           spawn_edge_id, spawn_lane_pos,
+                           spawn_x, spawn_y, spawn_heading ) )
     {
-      walk_along_lane( start_lane_id, start_lane_pos, distance, spawn_x, spawn_y, spawn_heading );
+      std::cout << "skipping spawn of " << id << ": walk_along_route failed at distance " << distance << std::endl;
+      continue;
     }
-    else
+
+    if( spawn_edge_id.empty() )
     {
-      const double heading_rad = ego_start_heading_deg_ * M_PI / 180.0;
-      spawn_x = ego_start_sumo_x_ + std::sin( heading_rad ) * distance;
-      spawn_y = ego_start_sumo_y_ + std::cos( heading_rad ) * distance;
+      std::cout << "skipping spawn of " << id << ": could not resolve spawn edge" << std::endl;
+      continue;
     }
 
     try
     {
-      std::string spawn_edge_id;
-      double      spawn_lane_pos = 0.0;
-      try
-      {
-        auto spawn_road = libsumo::Simulation::convertRoad( spawn_x, spawn_y, false );
-        spawn_edge_id   = spawn_road.edgeID;
-        spawn_lane_pos  = spawn_road.pos;
-      }
-      catch( ... ) {}
-
-      if( spawn_edge_id.empty() )
-      {
-        std::cout << "skipping spawn of " << id << ": could not resolve spawn edge" << std::endl;
-        continue;
-      }
-
-      // build a route of at least 50 edges forward from spawn so the vehicle
-      // traverses the full scenario including roundabouts without running out of route
-      auto route_edges = build_forward_route( spawn_edge_id, 50, static_cast<unsigned int>( std::hash<std::string>{}( id ) ) );
+      auto route_edges = build_forward_route( spawn_edge_id, 50,
+                             static_cast<unsigned int>( std::hash<std::string>{}( id ) ) );
       if( route_edges.size() < 2 )
       {
         std::cout << "skipping spawn of " << id << ": could not build forward route from " << spawn_edge_id << std::endl;
@@ -588,13 +647,19 @@ SUMOTrafficToROS::spawn_initial_traffic()
 
       std::string route_id = id + "_route";
       libsumo::Route::add( route_id, route_edges );
-      libsumo::Vehicle::add( id, route_id, "DEFAULT_VEHTYPE", "now", "best",
-                             std::to_string( spawn_lane_pos ), "8.0" );
-      libsumo::Vehicle::moveToXY( id, "", 0, spawn_x, spawn_y, spawn_heading, 1 );
-      libsumo::Vehicle::setSpeed( id, 8.0 );
+      libsumo::Vehicle::add( id, route_id, initial_traffic_veh_type_, "now", "best",
+                             "random_free", "0" );
+      try
+      {
+        libsumo::Vehicle::moveToXY( id, spawn_edge_id, 0, spawn_x, spawn_y, spawn_heading, 2 );
+      }
+      catch( const std::exception& e )
+      {
+        std::cout << "moveToXY failed for " << id << ": " << e.what() << std::endl;
+      }
       std::cout << "spawned traffic vehicle " << id
                 << " at (" << spawn_x << ", " << spawn_y << ")"
-                << " heading=" << spawn_heading
+                << " edge=" << spawn_edge_id << " pos=" << spawn_lane_pos
                 << " route: " << route_edges.front() << " -> " << route_edges.back()
                 << " (" << route_edges.size() << " edges)" << std::endl;
     }
@@ -661,10 +726,13 @@ SUMOTrafficToROS::init_sumo()
   get_parameter( "use_geo_conversion", use_geo_conversion_ );
   initial_traffic_count_ = 0;
   initial_traffic_spacing_ = 20.0;
+  initial_traffic_veh_type_ = "DEFAULT_VEHTYPE";
   declare_parameter( "initial_traffic_count", 0 );
   declare_parameter( "initial_traffic_spacing", 20.0 );
+  declare_parameter( "initial_traffic_veh_type", std::string( "DEFAULT_VEHTYPE" ) );
   get_parameter( "initial_traffic_count", initial_traffic_count_ );
   get_parameter( "initial_traffic_spacing", initial_traffic_spacing_ );
+  get_parameter( "initial_traffic_veh_type", initial_traffic_veh_type_ );
   std::vector<std::string> sumoargs;
   sumoargs.push_back( use_gui_ ? "sumo-gui" : "sumo" );
   sumoargs.push_back( "-c" );

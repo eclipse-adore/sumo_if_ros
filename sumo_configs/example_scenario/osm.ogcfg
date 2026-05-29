@@ -1,7 +1,6 @@
 <configuration>
-    <bbox value="10.519924163818361,52.311351686518584,10.556123256683351,52.32002877839365"/>
-    <output-dir value="/home/matthias/Sumo/2026-05-28-19-36-05"/>
-    <road-types value="{&quot;Highway&quot;: [&quot;motorway&quot;, &quot;motorway_link&quot;, &quot;trunk&quot;, &quot;trunk_link&quot;, &quot;primary&quot;, &quot;primary_link&quot;, &quot;secondary&quot;, &quot;secondary_link&quot;, &quot;tertiary&quot;, &quot;tertiary_link&quot;, &quot;unclassified&quot;, &quot;residential&quot;, &quot;living_street&quot;, &quot;unsurfaced&quot;, &quot;service&quot;, &quot;raceway&quot;, &quot;bus_guideway&quot;, &quot;track&quot;, &quot;footway&quot;, &quot;pedestrian&quot;, &quot;path&quot;, &quot;bridleway&quot;, &quot;cycleway&quot;, &quot;step&quot;, &quot;steps&quot;, &quot;stairs&quot;], &quot;Railway&quot;: [&quot;preserved&quot;, &quot;tram&quot;, &quot;subway&quot;, &quot;light_rail&quot;, &quot;rail&quot;, &quot;highspeed&quot;, &quot;monorail&quot;], &quot;Aeroway&quot;: [&quot;stopway&quot;, &quot;parking_position&quot;, &quot;taxiway&quot;, &quot;taxilane&quot;, &quot;runway&quot;, &quot;highway_strip&quot;], &quot;Waterway&quot;: [&quot;river&quot;, &quot;canal&quot;], &quot;Aerialway&quot;: [&quot;cable_car&quot;, &quot;gondola&quot;], &quot;Route&quot;: [&quot;ferry&quot;]}"/>
-    <shapes value="True"/>
+    <bbox value="10.532809495925905,52.31347008377495,10.560505986213684,52.317011759439374"/>
+    <output-dir value="/home/matthias/Sumo/2026-05-29-16-55-50"/>
+    <road-types value="{&quot;Highway&quot;: [&quot;motorway&quot;, &quot;motorway_link&quot;, &quot;trunk&quot;, &quot;trunk_link&quot;, &quot;primary&quot;, &quot;primary_link&quot;, &quot;secondary&quot;, &quot;secondary_link&quot;, &quot;tertiary&quot;, &quot;tertiary_link&quot;, &quot;unclassified&quot;, &quot;residential&quot;, &quot;living_street&quot;, &quot;unsurfaced&quot;, &quot;service&quot;, &quot;raceway&quot;, &quot;bus_guideway&quot;], &quot;Railway&quot;: [], &quot;Aeroway&quot;: [], &quot;Waterway&quot;: [], &quot;Aerialway&quot;: [], &quot;Route&quot;: []}"/>
     <gzip value="True"/>
 </configuration>

@@ -101,6 +101,7 @@ protected:
 
   int         initial_traffic_count_;
   double      initial_traffic_spacing_;
+  std::string initial_traffic_veh_type_;
 
 protected:
 
