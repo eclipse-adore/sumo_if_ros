@@ -310,8 +310,8 @@ SUMOTrafficToROS::transfer_data_sumo_to_ros()
           {
             auto geopos = libsumo::Simulation::convertGeo( centre_x, centre_y, false );
             auto utm    = map::convert_lat_lon_to_utm( geopos.y, geopos.x );
-            pos_x = utm[0] - ego_start_x_;
-            pos_y = utm[1] - ego_start_y_;
+            pos_x = utm[0];
+            pos_y = utm[1];
           }
           else
           {
@@ -648,7 +648,7 @@ SUMOTrafficToROS::spawn_initial_traffic()
       std::string route_id = id + "_route";
       libsumo::Route::add( route_id, route_edges );
       libsumo::Vehicle::add( id, route_id, initial_traffic_veh_type_, "now", "best",
-                             "random_free", "0" );
+                             "random_free", std::to_string( initial_traffic_speed_ ) );
       try
       {
         libsumo::Vehicle::moveToXY( id, spawn_edge_id, 0, spawn_x, spawn_y, spawn_heading, 2 );
@@ -726,12 +726,15 @@ SUMOTrafficToROS::init_sumo()
   get_parameter( "use_geo_conversion", use_geo_conversion_ );
   initial_traffic_count_ = 0;
   initial_traffic_spacing_ = 20.0;
+  initial_traffic_speed_ = 0.0;
   initial_traffic_veh_type_ = "DEFAULT_VEHTYPE";
   declare_parameter( "initial_traffic_count", 0 );
   declare_parameter( "initial_traffic_spacing", 20.0 );
+  declare_parameter( "initial_traffic_speed", 0.0 );
   declare_parameter( "initial_traffic_veh_type", std::string( "DEFAULT_VEHTYPE" ) );
   get_parameter( "initial_traffic_count", initial_traffic_count_ );
   get_parameter( "initial_traffic_spacing", initial_traffic_spacing_ );
+  get_parameter( "initial_traffic_speed", initial_traffic_speed_ );
   get_parameter( "initial_traffic_veh_type", initial_traffic_veh_type_ );
   std::vector<std::string> sumoargs;
   sumoargs.push_back( use_gui_ ? "sumo-gui" : "sumo" );
