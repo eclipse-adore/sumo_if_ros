@@ -25,6 +25,7 @@
 
 #include <adore_ros2_msgs/msg/traffic_participant.hpp>
 #include <adore_ros2_msgs/msg/traffic_participant_set.hpp>
+#include <adore_ros2_msgs/msg/route.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/time.hpp>
@@ -65,6 +66,10 @@ protected:
 
   rclcpp::Publisher<adore_ros2_msgs::msg::TrafficParticipantSet>::SharedPtr publisher;
   rclcpp::Subscription<adore_ros2_msgs::msg::TrafficParticipant>::SharedPtr subscriber;
+  rclcpp::Subscription<adore_ros2_msgs::msg::Route>::SharedPtr subscriber_route;
+  adore_ros2_msgs::msg::Route latest_route;
+  
+
   std::string                                                               sumo_rosveh_prefix;
   rclcpp::TimerBase::SharedPtr                                              timer;
 
@@ -81,6 +86,7 @@ protected:
   double                 tSUMO0;
   double                 tSUMO;
   double                 step_length;
+  double                 t_diff_ros_sumo_s;
 
   int         utm_zone;
   std::string utm_letter;
@@ -98,9 +104,14 @@ protected:
   double      ego_start_heading_deg_;
   double      ego_start_sumo_x_;
   double      ego_start_sumo_y_;
+  double      intermediate_goal_x_;
+  double      intermediate_goal_y_;
+  double      intermediate_goal_yaw_angle_;
+  std::string currentTargetEdge;
 
   int         initial_traffic_count_;
   double      initial_traffic_spacing_;
+  double      initial_traffic_speed_;
   std::string initial_traffic_veh_type_;
 
 protected:
